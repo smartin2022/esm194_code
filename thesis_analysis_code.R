@@ -5,25 +5,30 @@ main_data<- read.csv("Maromizaha Camera Trap Data - Sheet1.csv", stringsAsFactor
 
 
 #assigning location labels
+library(chron)
+main_data$new_start_date<-chron(main_data$Photo.Date, main_data$Time.Start, 
+                                format=c("y-m-d", "h:m:s"))
+main_data$new_stop_date<-chron(main_data$Photo.Date, main_data$Time.End, 
+                                format=c("y-m-d", "h:m:s"))
+camera_trap_nights$new_start_date<-chron(camera_trap_nights$start.date,
+                                         camera_trap_nights$start.time,
+                                         format=c("y-m-d", "h:m:s"))
+camera_trap_nights$new_stop_date<-chron(camera_trap_nights$stop.date,
+                                         camera_trap_nights$stop.time,
+                                         format=c("y-m-d", "h:m:s"))
 main_data$location_label<- NA
-for(i in 1:2){
-  start_date<- camera_trap_nights[i, "start.date"]
-  start_time<- camera_trap_nights[i, "start.time"]
-  end_date<- camera_trap_nights[i, "stop.date"]
-  end_time<- camera_trap_nights[i, "stop.time"]
+for(i in 1:nrow(camera_trap_nights)){
+  start_date<- camera_trap_nights[i, "new_start_date"]
+  end_date<- camera_trap_nights[i, "new_stop_date"]
   location_label<- camera_trap_nights[i, "new.cam.label"]
   camera_number<- camera_trap_nights[i, "camera.trap.....convert.to.new.grid.labels"]
   print(i)
-  print(end_date)
-  print(end_time)
   print(start_date)
-  print(start_time)
+  print(end_date)
   print(location_label)
   print(camera_number)
-  print(dim(
-  main_data[main_data$Photo.Date >= start_date & 
-              main_data$Time.Start >= start_time &
-              main_data$Photo.Date<= end_date &
-              main_data$Time.End <= end_time &
-              main_data$Forest.Location..==camera_number,]))#<- location_label
+  main_data[main_data$new_start_date >= start_date & 
+              main_data$new_stop_date<= end_date &
+              main_data$Forest.Location..==camera_number, "location_label"]<- location_label
 }
+no_location_match<- main_data[is.na(main_data$location_label),]
