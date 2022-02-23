@@ -5,10 +5,12 @@ main_data<- read.csv("Maromizaha Camera Trap Data - Sheet1.csv", stringsAsFactor
 
 
 #assigning location labels
+time_fixed<-main_data[main_data$Time.Not.able.to.be.fixed!="y"&
+                        is.na(main_data$adjusted.date)==FALSE,]
 library(chron)
-main_data$new_start_date<-chron(main_data$Photo.Date, main_data$Time.Start, 
+time_fixed$new_start_date<-chron(time_fixed$adjusted.date, time_fixed$updated.time.start, 
                                 format=c("y-m-d", "h:m:s"))
-main_data$new_stop_date<-chron(main_data$Photo.Date, main_data$Time.End, 
+time_fixed$new_stop_date<-chron(time_fixed$adjusted.date, time_fixed$updated.Time.End, 
                                 format=c("y-m-d", "h:m:s"))
 camera_trap_nights$new_start_date<-chron(camera_trap_nights$start.date,
                                          camera_trap_nights$start.time,
@@ -16,7 +18,7 @@ camera_trap_nights$new_start_date<-chron(camera_trap_nights$start.date,
 camera_trap_nights$new_stop_date<-chron(camera_trap_nights$stop.date,
                                          camera_trap_nights$stop.time,
                                          format=c("y-m-d", "h:m:s"))
-main_data$location_label<- NA
+time_fixed$location_label<- NA
 for(i in 1:nrow(camera_trap_nights)){
   start_date<- camera_trap_nights[i, "new_start_date"]
   end_date<- camera_trap_nights[i, "new_stop_date"]
@@ -27,8 +29,13 @@ for(i in 1:nrow(camera_trap_nights)){
   print(end_date)
   print(location_label)
   print(camera_number)
-  main_data[main_data$new_start_date >= start_date & 
-              main_data$new_stop_date<= end_date &
-              main_data$Forest.Location..==camera_number, "location_label"]<- location_label
+  nlines<-nrow(time_fixed[time_fixed$new_start_date >= start_date & 
+                            time_fixed$new_stop_date<= end_date &
+                            time_fixed$Forest.Location..==camera_number,])
+  if(nlines>0){
+  time_fixed[time_fixed$new_start_date >= start_date & 
+              time_fixed$new_stop_date<= end_date &
+              time_fixed$Forest.Location..==camera_number, "location_label"]<- location_label
+  }
 }
-no_location_match<- main_data[is.na(main_data$location_label),]
+no_location_match<- time_fixed[is.na(time_fixed$location_label),]
