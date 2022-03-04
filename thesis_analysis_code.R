@@ -38,4 +38,17 @@ for(i in 1:nrow(camera_trap_nights)){
               time_fixed$Forest.Location..==camera_number, "location_label"]<- location_label
   }
 }
+# there are 7 images that we cannot add to a working interval
 no_location_match<- time_fixed[is.na(time_fixed$location_label),]
+
+final_data<-merge(time_fixed, locations, by.x = "location_label", by.y = "cameraNum", all.x = TRUE)
+
+#species observation bar graph
+animal_type_count <- table(final_data$Type.of.animal)
+barplot(animal_type_count, main="Animal Type Distribution",
+        xlab="Number of Incidents")
+
+#incidents per camera
+camera_incidents <- table(final_data$location_label)
+barplot(camera_incidents, main="Incidents per Camera",
+        xlab="Camera Name")
