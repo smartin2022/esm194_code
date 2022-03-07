@@ -1,4 +1,6 @@
 setwd("C:/Users/smart/Desktop/Honors Thesis/analysis")
+#install.packages("RColorBrewer") 
+library(RColorBrewer)
 locations<- read.csv("CT lab data - combined location data.csv", stringsAsFactors = FALSE)
 camera_trap_nights<- read.csv("CT lab data - malfunction info.csv", stringsAsFactors = FALSE)
 main_data<- read.csv("Maromizaha Camera Trap Data - Sheet1.csv", stringsAsFactors = FALSE)
@@ -18,6 +20,7 @@ camera_trap_nights$new_start_date<-chron(camera_trap_nights$start.date,
 camera_trap_nights$new_stop_date<-chron(camera_trap_nights$stop.date,
                                          camera_trap_nights$stop.time,
                                          format=c("y-m-d", "h:m:s"))
+camera_trap_nights$duration<-camera_trap_nights$new_stop_date-camera_trap_nights$new_start_date
 time_fixed$location_label<- NA
 for(i in 1:nrow(camera_trap_nights)){
   start_date<- camera_trap_nights[i, "new_start_date"]
@@ -44,11 +47,14 @@ no_location_match<- time_fixed[is.na(time_fixed$location_label),]
 final_data<-merge(time_fixed, locations, by.x = "location_label", by.y = "cameraNum", all.x = TRUE)
 
 #species observation bar graph
+par(mar=c(5.1, 4.1, 4.1, 2.1), mgp=c(3, 1, 0))
 animal_type_count <- table(final_data$Type.of.animal)
-barplot(animal_type_count, main="Animal Type Distribution",
-        xlab="Number of Incidents")
-
+barplot(animal_type_count, main="Incidents of different animal types",
+        ylab= "Incidents", xlab="Animal Type", ylim=c(0, 1000), col=("dark blue"))
+#barplot(animal_type_count[c(3, 5, 8, 9)], main="Incidents of different animal types", ylab= "Incidents", xlab="Animal Type", ylim=c(0, 1000))
+ 
 #incidents per camera
-camera_incidents <- table(final_data$location_label)
-barplot(camera_incidents, main="Incidents per Camera",
-        xlab="Camera Name")
+blanks_removed <- na.omit(final_data$Type.of.animal)
+camera_incident_rate<- final_data$blanks_removed/final_data$duration
+barplot(camera_incident_rate, main="Incidents per Camera",
+        xlab="Camera Name", xlim=c(1, 50), ylim=c(0,100))
