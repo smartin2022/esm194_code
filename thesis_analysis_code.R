@@ -54,7 +54,33 @@ barplot(animal_type_count, main="Incidents of different animal types",
 #barplot(animal_type_count[c(3, 5, 8, 9)], main="Incidents of different animal types", ylab= "Incidents", xlab="Animal Type", ylim=c(0, 1000))
  
 #incidents per camera
-blanks_removed <- na.omit(final_data$Type.of.animal)
-camera_incident_rate<- final_data$blanks_removed/final_data$duration
+blanks_removed<- final_data[is.na(final_data$location_label)==FALSE,]
+final_data_1<-blanks_removed
+final_data_1$camera_start<-NA
+final_data_1$camera_stop<-NA
+final_data_1$camera_duration<-NA
+for(i in 1:nrow(final_data_1)) {
+  location_label<- final_data_1[i, "location_label"]
+  photo_start<- final_data_1[i, "new_start_date"]
+  photo_end<- final_data_1[i, "new_stop_date"]
+  matching_camera<-camera_trap_nights[camera_trap_nights$new.cam.label==location_label & 
+                                        camera_trap_nights$new_start_date<=photo_start & 
+                                        camera_trap_nights$new_stop_date>=photo_end,]
+  final_data_1[i, "camera_start"]<-matching_camera$new_start_date
+  final_data_1[i, "camera_stop"]<-matching_camera$new_stop_date
+  final_data_1[i, "camera_duration"]<-matching_camera$duration
+}
+
+camera_incident_rate<- aggregate(final_data_1$Species, by=list(location_label=final_data_1$location_label, species=final_data_1$Species, 
+                                                               Type_of_animal=final_data_1$Type.of.animal, 
+                                                               camera_duration=final_data_1$camera_duration), FUN=length)
+camera_incident_rate$rate<- camera_incident_rate$x/camera_incident_rate$camera_duration
+#rate units = number of instances per day
 barplot(camera_incident_rate, main="Incidents per Camera",
-        xlab="Camera Name", xlim=c(1, 50), ylim=c(0,100))
+        xlab="Camera", ylab="Incidents", xlim=c(1, 50), ylim=c(0,100))
+#pie chart showing % occurrence of each animal type for QGIS figure
+incidents_animal_type<- aggregate(final_data_1$Species, by=list(location_label=final_data_1$location_label,
+                                                                animal_type=final_data_1$Type.of.animal,
+                                                                camera_duration=final_data_1$camera_duration),
+                                  FUN=length)
+
