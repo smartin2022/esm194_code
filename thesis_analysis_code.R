@@ -1,6 +1,7 @@
 setwd("C:/Users/smart/Desktop/Honors Thesis/analysis")
 #install.packages("RColorBrewer") 
 library(RColorBrewer)
+library(mgcv)
 locations<- read.csv("CT lab data - combined location data.csv", stringsAsFactors = FALSE)
 camera_trap_nights<- read.csv("CT lab data - malfunction info.csv", stringsAsFactors = FALSE)
 main_data<- read.csv("Maromizaha Camera Trap Data - Sheet1.csv", stringsAsFactors = FALSE)
@@ -78,9 +79,33 @@ camera_incident_rate$rate<- camera_incident_rate$x/camera_incident_rate$camera_d
 #rate units = number of instances per day
 barplot(camera_incident_rate, main="Incidents per Camera",
         xlab="Camera", ylab="Incidents", xlim=c(1, 50), ylim=c(0,100))
+
+#joining rodents and tenrecs into same category
+#what function is this?
+
 #pie chart showing % occurrence of each animal type for QGIS figure
 incidents_animal_type<- aggregate(final_data_1$Species, by=list(location_label=final_data_1$location_label,
                                                                 animal_type=final_data_1$Type.of.animal,
                                                                 camera_duration=final_data_1$camera_duration),
+                                                                
                                   FUN=length)
+individual_type_incidents <- reshape(incidents_animal_type, 
+             timevar = "animal_type",
+             idvar = c("location_label", "camera_duration"),
+             direction = "wide")
 
+individual_type_incidents[1:i,]
+
+write.csv(incidents_animal_type, file = "incidents_animal_type.csv")
+write.csv(individual_type_incidents, file="individual_type_incidents.csv")
+
+incidents_animal_type$observation_rate<- incidents_animal_type$x/incidents_animal_type$camera_duration
+incidents_animal_type_GPS<-merge(incidents_animal_type, locations, by.x = "location_label", by.y = "cameraNum", all.x = TRUE)
+no_missing_locations<-incidents_animal_type_GPS[is.na(incidents_animal_type_GPS$lat)==FALSE,]
+
+#selecting good views
+good_views<- no_missing_locations[no_missing_locations$Trees.visible.Y.N=="Y",]
+good_animals<- good_views[good_views$animal_type %in% c("Rodent", "Tenrec", "Carnivore", "Lemur"),]
+
+#need to include random effects
+model1<-gamm(x ~ animal_type + offset(log(camera_duration)), random = list(location_label = ~1), family = poisson(link = log), data = good_animals)
