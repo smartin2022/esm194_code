@@ -104,8 +104,14 @@ incidents_animal_type_GPS<-merge(incidents_animal_type, locations, by.x = "locat
 no_missing_locations<-incidents_animal_type_GPS[is.na(incidents_animal_type_GPS$lat)==FALSE,]
 
 #selecting good views
-good_views<- no_missing_locations[no_missing_locations$Trees.visible.Y.N=="Y",]
+good_views<- no_missing_locations[no_missing_locations$Trees.visible.Y.N=="Y", ] #& no_missing_locations$location_label!="NNN'" & no_missing_locations$location_label!="DD",]
 good_animals<- good_views[good_views$animal_type %in% c("Rodent", "Tenrec", "Carnivore", "Lemur"),]
 
+#conversion to UTM
+hrData2018SP	<- SpatialPointsDataFrame(hrData2018[,c('longitude', 'latitude')], hrData2018, proj4string=CRS("+proj=longlat +datum=WGS84"))
+hrData2018UTM	<- spTransform(hrData2018SP, CRS("+proj=utm +zone=38 +south +datum=WGS84"))
+
 #need to include random effects
-model1<-gamm(x ~ animal_type + offset(log(camera_duration)), random = list(location_label = ~1), family = poisson(link = log), data = good_animals)
+model1<-gamm(x ~ animal_type + zone..E.C. + offset(log(camera_duration)), random = list(location_label = ~1), 
+             correlation = corSpher(form = ~lat + long),
+             family = poisson(link = log), data = good_animals)
