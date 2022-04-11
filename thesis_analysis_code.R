@@ -104,14 +104,26 @@ incidents_animal_type_GPS<-merge(incidents_animal_type, locations, by.x = "locat
 no_missing_locations<-incidents_animal_type_GPS[is.na(incidents_animal_type_GPS$lat)==FALSE,]
 
 #selecting good views
-good_views<- no_missing_locations[no_missing_locations$Trees.visible.Y.N=="Y", ] #& no_missing_locations$location_label!="NNN'" & no_missing_locations$location_label!="DD",]
+good_views<- no_missing_locations[no_missing_locations$Trees.visible.Y.N=="Y" ,]
 good_animals<- good_views[good_views$animal_type %in% c("Rodent", "Tenrec", "Carnivore", "Lemur"),]
 
 #conversion to UTM
-hrData2018SP	<- SpatialPointsDataFrame(hrData2018[,c('longitude', 'latitude')], hrData2018, proj4string=CRS("+proj=longlat +datum=WGS84"))
-hrData2018UTM	<- spTransform(hrData2018SP, CRS("+proj=utm +zone=38 +south +datum=WGS84"))
+library("spatstat")
+library("sp")
+library("maptools")
+library("raster")
+library("rgdal")
+lat_long_conversion	<- SpatialPointsDataFrame(good_animals[,c('long', 'lat')], good_animals, proj4string=CRS("+proj=longlat +datum=WGS84"))
+UTM	<- spTransform(lat_long_conversion, CRS("+proj=utm +zone=38 +south +datum=WGS84"))
+good_animals$latUTM<-coordinates(UTM)[ ,2]
+good_animals$longUTM<-coordinates(UTM)[,1]
+
+lemurs<- good_animals[good_animals$animal_type == "Lemur", ]
+#R, NNN have a duplicate interval, keep checking to see if there are more
 
 #need to include random effects
 model1<-gamm(x ~ animal_type + zone..E.C. + offset(log(camera_duration)), random = list(location_label = ~1), 
-             correlation = corSpher(form = ~lat + long),
+             correlation = corSpher(form = ~latUTM + longUTM),
              family = poisson(link = log), data = good_animals)
+
+good_animals[unique(good_animals$location_label) & is.na(good_animals$location_label)==FALSE, ]
