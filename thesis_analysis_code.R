@@ -119,7 +119,68 @@ good_animals$latUTM<-coordinates(UTM)[ ,2]
 good_animals$longUTM<-coordinates(UTM)[,1]
 
 lemurs<- good_animals[good_animals$animal_type == "Lemur", ]
-#R, NNN have a duplicate interval, keep checking to see if there are more
+#NNN, R
+NNN_lemur<- good_animals[good_animals$location_label == "NNN"& good_animals$animal_type == "Lemur",]
+NNN_new_lemur <- NNN_lemur[1,]
+NNN_new_lemur[, "camera_duration"] <- 110.3674
+
+#changing R
+R_lemur<- good_animals[good_animals$location_label == "R"& good_animals$animal_type == "Lemur",]
+R_new_lemur <- R_lemur[1,]
+R_new_lemur[, "camera_duration"] <- 187.9757
+
+#Then remove both rows from good animals.
+
+#Then add new row back
+#You can change data by x1$variable name <- new value
+
+
+rodents<- good_animals[good_animals$animal_type == "Rodent",]
+#EE, R, NNN
+NNN_rodent<- good_animals[good_animals$location_label == "NNN"& good_animals$animal_type == "Rodent",]
+NNN_new_rodent <- NNN_rodent[1,]
+NNN_new_rodent[, "camera_duration"] <- 110.3674
+#And then change the row to include info from both (duration, number of events, and rate)
+good_animals2<- nrow(good_animals + 1) NNN + good_animals[192, c("camera_duration", "observation_rate", "x")]
+#Then remove both rows from good animals.
+
+#Then add new row back
+#You can change data by x1$variable name <- new value
+
+#changing R
+R_rodent<- good_animals[good_animals$location_label == "R"& good_animals$animal_type == "Rodent",]
+R_new_rodent <- R_rodent[1,]
+R_new_rodent[, "camera_duration"] <- 187.9757
+
+#changing EE
+EE_rodent <-good_animals[good_animals$location_label == "EE"& good_animals$animal_type == "Rodent",]
+EE_new_rodent <- EE_rodent[1,]
+EE_new_rodent[, "camera_duration"]<- 151.6854
+
+#Then remove both rows from good animals.
+
+#Then add new row back
+#You can change data by x1$variable name <- new value
+carnivores <-good_animals[good_animals$animal_type == "Carnivore",]
+#R
+R_carnivore<- good_animals[good_animals$location_label == "R"& good_animals$animal_type == "Carnivore",]
+R_new_carnivore<- R_carnivore[1,]
+R_new_carnivore[, "camera_duration"]<-187.9757
+
+#And then change the row to include info from both (duration, number of events, and rate)
+
+
+#Then remove both rows from good animals.
+good_animals1 <- good_animals[!good_animals$location_label == "NNN" & !good_animals$location_label == "R" & !good_animals$location_label == "EE",]
+
+good_animals1[nrow(good_animals1) + 6,] <- c("R_new_carnivore", "R_new_rodent", "R_new_lemur", 
+                                             "EE_new_rodent", 
+                                             "NNN_new_lemur", "NNN_new_rodent")
+good_animals3<-rbind(good_animals1, "R_new_carnivore")
+
+#You can change data by x1$variable name <- new value
+
+
 
 #need to include random effects
 model1<-gamm(x ~ animal_type + zone..E.C. + offset(log(camera_duration)), random = list(location_label = ~1), 
@@ -127,3 +188,4 @@ model1<-gamm(x ~ animal_type + zone..E.C. + offset(log(camera_duration)), random
              family = poisson(link = log), data = good_animals)
 
 good_animals[unique(good_animals$location_label) & is.na(good_animals$location_label)==FALSE, ]
+
