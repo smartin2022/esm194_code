@@ -75,13 +75,13 @@ for(i in 1:nrow(final_data_1)) {
 camera_incident_rate<- aggregate(final_data_1$Species, by=list(location_label=final_data_1$location_label, species=final_data_1$Species, 
                                                                Type_of_animal=final_data_1$Type.of.animal, 
                                                                camera_duration=final_data_1$camera_duration), FUN=length)
+
+
 camera_incident_rate$rate<- camera_incident_rate$x/camera_incident_rate$camera_duration
 #rate units = number of instances per day
 barplot(camera_incident_rate, main="Incidents per Camera",
         xlab="Camera", ylab="Incidents", xlim=c(1, 50), ylim=c(0,100))
 
-#joining rodents and tenrecs into same category
-#what function is this?
 
 #pie chart showing % occurrence of each animal type for QGIS figure
 incidents_animal_type<- aggregate(final_data_1$Species, by=list(location_label=final_data_1$location_label,
@@ -89,6 +89,21 @@ incidents_animal_type<- aggregate(final_data_1$Species, by=list(location_label=f
                                                                 camera_duration=final_data_1$camera_duration),
                                                                 
                                   FUN=length)
+#adding zeros to the dataset
+animal_types<-unique(incidents_animal_type$animal_type)
+camera_locations<-unique(incidents_animal_type$location_label)
+for(i in camera_locations){
+    usedanimaltypes	<- incidents_animal_type[incidents_animal_type$location_label == i, 'animal_type']
+    missinganimaltypes	<- animal_types[!animal_types %in% usedanimaltypes]
+    zeros			<- rep(0, length(missinganimaltypes))
+    location_label		<- rep(i, length(missinganimaltypes))
+    duration <- rep(incidents_animal_type[incidents_animal_type$location_label == i, 'camera_duration'][1], length(missinganimaltypes))
+    missingLines	<- cbind(location_label, missinganimaltypes, duration, zeros, zeros)
+    colnames(missingLines)	<- c('location_label', 'animal_type', 'camera_duration', 'x', 'observation_rate')
+    incidents_animal_type			<- rbind(incidents_animal_type, missingLines)
+  
+}
+
 individual_type_incidents <- reshape(incidents_animal_type, 
              timevar = "animal_type",
              idvar = c("location_label", "camera_duration"),
@@ -118,74 +133,37 @@ UTM	<- spTransform(lat_long_conversion, CRS("+proj=utm +zone=38 +south +datum=WG
 good_animals$latUTM<-coordinates(UTM)[ ,2]
 good_animals$longUTM<-coordinates(UTM)[,1]
 
-lemurs<- good_animals[good_animals$animal_type == "Lemur", ]
-#NNN, R
-NNN_lemur<- good_animals[good_animals$location_label == "NNN"& good_animals$animal_type == "Lemur",]
-NNN_new_lemur <- NNN_lemur[1,]
-NNN_new_lemur[, "camera_duration"] <- 110.3674
+#reading in data set with combined intervals
+write.csv(good_animals, file = "good_animals4.csv")
+good_animals4<- read.csv("good_animals4.csv", stringsAsFactors = FALSE)
 
-#changing R
-R_lemur<- good_animals[good_animals$location_label == "R"& good_animals$animal_type == "Lemur",]
-R_new_lemur <- R_lemur[1,]
-R_new_lemur[, "camera_duration"] <- 187.9757
-
-#Then remove both rows from good animals.
-
-#Then add new row back
-#You can change data by x1$variable name <- new value
+good_animals_lemurs<-good_animals4[good_animals4$animal_type=="Lemur",]
 
 
-rodents<- good_animals[good_animals$animal_type == "Rodent",]
-#EE, R, NNN
-NNN_rodent<- good_animals[good_animals$location_label == "NNN"& good_animals$animal_type == "Rodent",]
-NNN_new_rodent <- NNN_rodent[1,]
-NNN_new_rodent[, "camera_duration"] <- 110.3674
-#And then change the row to include info from both (duration, number of events, and rate)
-good_animals2<- nrow(good_animals + 1) NNN + good_animals[192, c("camera_duration", "observation_rate", "x")]
-#Then remove both rows from good animals.
-
-#Then add new row back
-#You can change data by x1$variable name <- new value
-
-#changing R
-R_rodent<- good_animals[good_animals$location_label == "R"& good_animals$animal_type == "Rodent",]
-R_new_rodent <- R_rodent[1,]
-R_new_rodent[, "camera_duration"] <- 187.9757
-
-#changing EE
-EE_rodent <-good_animals[good_animals$location_label == "EE"& good_animals$animal_type == "Rodent",]
-EE_new_rodent <- EE_rodent[1,]
-EE_new_rodent[, "camera_duration"]<- 151.6854
-
-#Then remove both rows from good animals.
-
-#Then add new row back
-#You can change data by x1$variable name <- new value
-carnivores <-good_animals[good_animals$animal_type == "Carnivore",]
-#R
-R_carnivore<- good_animals[good_animals$location_label == "R"& good_animals$animal_type == "Carnivore",]
-R_new_carnivore<- R_carnivore[1,]
-R_new_carnivore[, "camera_duration"]<-187.9757
-
-#And then change the row to include info from both (duration, number of events, and rate)
-
-
-#Then remove both rows from good animals.
-good_animals1 <- good_animals[!good_animals$location_label == "NNN" & !good_animals$location_label == "R" & !good_animals$location_label == "EE",]
-
-good_animals1[nrow(good_animals1) + 6,] <- c("R_new_carnivore", "R_new_rodent", "R_new_lemur", 
-                                             "EE_new_rodent", 
-                                             "NNN_new_lemur", "NNN_new_rodent")
-good_animals3<-rbind(good_animals1, "R_new_carnivore")
-
-#You can change data by x1$variable name <- new value
-
-
-
-#need to include random effects
-model1<-gamm(x ~ animal_type + zone..E.C. + offset(log(camera_duration)), random = list(location_label = ~1), 
+#model for lemur activity
+model_lemurs<-gam(x ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
              correlation = corSpher(form = ~latUTM + longUTM),
-             family = poisson(link = log), data = good_animals)
+             family = poisson(link = log), data = good_animals_lemurs)
 
-good_animals[unique(good_animals$location_label) & is.na(good_animals$location_label)==FALSE, ]
+#model for carnivore activity
+good_animals_carnivores<-good_animals4[good_animals4$animal_type=="Carnivore",]
+
+model_carnivores<-gam(x ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
+            correlation = corSpher(form = ~latUTM + longUTM),
+            family = poisson(link = log), data = good_animals_carnivores)
+
+#model for rodent activity
+good_animals_rodents<-good_animals4[good_animals4$animal_type=="Rodent",]
+
+model_rodents<-gam(x ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
+                      correlation = corSpher(form = ~latUTM + longUTM),
+                      family = poisson(link = log), data = good_animals_rodents)
+
+#model for tenrec activity
+good_animals_tenrecs<-good_animals4[good_animals4$animal_type=="Tenrec",]
+
+model_tenrecs<-gam(x ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
+                      correlation = corSpher(form = ~latUTM + longUTM),
+                      family = poisson(link = log), data = good_animals_tenrecs)
+
 
