@@ -150,7 +150,7 @@ lat_long_lemurs<- SpatialPointsDataFrame(good_animals_lemurs[,c('long', 'lat')],
 UTM_lemurs	<- spTransform(lat_long_lemurs, CRS("+proj=utm +zone=38 +south +datum=WGS84"))
 
 library(gstat)
-gs <- gstat(formula=x~1, locations=UTM_lemurs)
+gs <- gstat(formula=x~1, locations=UTM_carnivores)
 v <- variogram(gs, width=20)
 #model for lemur activity
 model_lemurs<-gam(x ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
@@ -177,6 +177,74 @@ good_animals_tenrecs<-good_animals0[good_animals0$animal_type=="Tenrec",]
 model_tenrecs<-gam(x ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
                       correlation = corSpher(form = ~latUTM + longUTM),
                       family = poisson(link = log), data = good_animals_tenrecs)
+
+#lemur predicted value
+N		<- length(model_lemurs$fit)
+nd_distance 	<- seq(min(good_animals_lemurs$distance.to.edge),max(good_animals_lemurs$distance.to.edge),length=N)
+nd 		<- data.frame(zone..E.C. = rep("C", N), distance.to.edge = nd_distance, camera_duration = rep(median(good_animals_lemurs$camera_duration), N))
+
+modpredlemurs	<- predict(model_lemurs, newdata = nd, type = "response", se.fit = TRUE)
+
+theta_hatlemur	<- modpredlemurs$fit
+xlemur 		<- nd_distance
+
+ub_thetalemur	<- theta_hatlemur + qnorm(0.975)*modpredlemurs$se.fit/2
+lb_thetalemur	<- theta_hatlemur - qnorm(0.975)*modpredlemurs$se.fit/2
+xxlemur		<- c(xlemur,rev(xlemur))
+yy_thetalemur	<- c(ub_thetalemur,rev(lb_thetalemur))
+
+
+lemurLine	<- rgb(0, 0, 124, max = 255)
+lemurPoly	<- rgb(0, 0, 124/255,  alpha = 0.25)
+
+
+modpredcarnivores	<- predict(model_carnivores, newdata = nd, type = "response", se.fit = TRUE)
+
+theta_hatcarnivore	<- modpredcarnivores$fit
+xcarnivore 		<- nd_distance
+
+ub_thetacarnivore	<- theta_hatcarnivore + qnorm(0.975)*modpredcarnivores$se.fit/2
+lb_thetacarnivore	<- theta_hatcarnivore - qnorm(0.975)*modpredcarnivores$se.fit/2
+xxcarnivore		<- c(xcarnivore,rev(xcarnivore))
+yy_thetacarnivore	<- c(ub_thetacarnivore,rev(lb_thetacarnivore))
+
+
+carnivoreLine	<- rgb(186, 0, 0, max = 255)
+carnivorePoly	<- rgb(186/255, 0, 0,  alpha = 0.25)
+
+
+O 	<- length(model_rodents$fit)
+nd_distance2 	<- seq(min(good_animals_rodents$distance.to.edge),max(good_animals_rodents$distance.to.edge),length=N)
+nd_rodents 		<- data.frame(zone..E.C. = rep("C", N), distance.to.edge = nd_distance2, camera_duration = rep(median(good_animals_rodents$camera_duration), N))
+
+P		<- length(model_tenrecs$fit)
+nd_distance3 	<- seq(min(good_animals_tenrecs$distance.to.edge),max(good_animals_tenrecs$distance.to.edge),length=N)
+nd_tenrencs		<- data.frame(zone..E.C. = rep("C", N), distance.to.edge = nd_distance3, camera_duration = rep(median(good_animals_tenrecs$camera_duration), N))
+
+
+
+ub_thetaL	<- theta_hatL + qnorm(0.975)*plotdata[[1]]$se/2
+lb_thetaL	<- theta_hatL - qnorm(0.975)*plotdata[[1]]$se/2
+xx		<- c(x,rev(x))
+yy_thetaL	<- c(ub_thetaL,rev(lb_thetaL))
+
+
+lowLine	<- rgb(0, 0, 124, max = 255)
+lowPoly	<- rgb(0, 0, 124/255,  alpha = 0.25)
+
+ytloc 	<- seq(0, 25, by = 5)
+labs 		<- round(30*ytloc/median(good_animals_lemurs$camera_duration), 2)
+
+png('PredictedValues.png', width = 10, height = 4, units = 'in', res = 300)
+matplot(xlemur,cbind(theta_hatlemur, theta_hatcarnivore),lty=c(1, 1),lwd = 2, col=c(lemurLine, carnivoreLine), type='l', ylab = 'Predicted Observations per Month', xlab = 'Distance to Forest Edge', ylim = c(0, 25), yaxt= "n")
+axis(2, at=ytloc, labels = labs)
+box()
+polygon(xxlemur, yy_thetalemur, col = lemurPoly, border = NA)
+polygon(xxcarnivore, yy_thetacarnivore, col = carnivorePoly, border = NA)
+
+legend(800, 20, c("Lemur", "Carnivore"), col = c(lemurLine, carnivoreLine), lty = 1)
+dev.off()
+
 
 #biodiversity indicies
 location_names<- unique(good_animals$location_label)
@@ -208,21 +276,46 @@ camera_incident_rate_simple_good_animals$longUTM<-coordinates(UTM_species)[,1]
 diversity_indicies<-data.frame()
 for (i in location_names) {
   subset<- camera_incident_rate_simple_good_animals[camera_incident_rate_simple_good_animals$location_label == i, ]
-  print(subset)
-  alpha_diversity <- nrow(subset[subset$rate >= 0, ])
-  SD <- shannonWeinerD(subset)
-  new_line <- subset[1, c("location_label", "camera_duration", "lat", "long", "trail.type..A.H.N.", "zone..E.C.", "distance.to.edge", "latUTM", "longUTM")]
+  print(i)
+  print(dim(subset))
+  alpha_diversity <- nrow(subset[subset$rate > 0, ])
+  subset2<- subset[subset$rate > 0, ]
+  SD <- shannonWeinerD(subset2)
+  new_line <- subset2[1, c("location_label", "camera_duration", "lat", "long", "trail.type..A.H.N.", "zone..E.C.", "distance.to.edge", "latUTM", "longUTM")]
   new_line<- cbind.data.frame(new_line, alpha_diversity, SD, log(alpha_diversity))
   diversity_indicies <- rbind.data.frame(diversity_indicies, new_line)
 }
 
+species_per_day <- data.frame()
+unique_days <- unique(final_data_1$adjusted.date)
+good_cameras <- unique(good_animals$location_label)
+for (i in unique_days){
+  for (j in good_cameras){
+    subset<- final_data_1[final_data_1$location_label == j & final_data_1$adjusted.date == i & final_data_1$Type.of.animal %in% c("Carnivore", "Lemur", "Rodent", "Tenrec"),]
+  if (nrow(subset) == 0){
+   newline<- cbind(i, j, 0)
+   species_per_day <- rbind(newline, species_per_day)
+  }
+  if (nrow(subset) > 0) {
+   newline<- cbind(i, j, length(unique(subset$Species)))
+   species_per_day<- rbind(newline, species_per_day)
+  } 
+    }
+}
+species_per_day$V3 <- (as.numeric(as.character(species_per_day$V3)))
+species_per_day <- merge(species_per_day, locations, by.x = "j", by.y = "cameraNum", all.x = TRUE)
+
+lat_long_conversion_species_per_day	<- SpatialPointsDataFrame(species_per_day[,c('long', 'lat')], species_per_day, proj4string=CRS("+proj=longlat +datum=WGS84"))
+UTM_species_per_day	<- spTransform(lat_long_conversion_species_per_day, CRS("+proj=utm +zone=38 +south +datum=WGS84"))
+species_per_day$latUTM<-coordinates(UTM_species_per_day)[ ,2]
+species_per_day$longUTM<-coordinates(UTM_species_per_day)[,1]
 
 model_SWD<-gam(SD ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
                    correlation = corSpher(form = ~latUTM + longUTM),
                    family = gaussian(), data = diversity_indicies)
-model_AD<-gam(alpha_diversity ~ zone..E.C. + offset(log(camera_duration)) + distance.to.edge, 
+model_AD<-gam(V3 ~ zone..E.C. + distance.to.edge, 
                correlation = corSpher(form = ~latUTM + longUTM),
-               family = gaussian(), data = diversity_indicies)
+               family = poisson(link = "log"), data = species_per_day)
 
 
 heat_map<- aggregate(camera_incident_rate_simple_good_animals$typeofanimal, by=list(location_label=camera_incident_rate_simple_good_animals$location_label,
@@ -232,11 +325,31 @@ heat_map<- aggregate(camera_incident_rate_simple_good_animals$typeofanimal, by=l
                      FUN=length)
 
 #heat map for QGIS
-heat_map<- aggregate(camera_incident_rate_simple$typeofanimal, by=list(location_label=camera_incident_rate_simple$location_label,
-                                                                                    typeofanimal=camera_incident_rate_simple$typeofanimal,
-                                                                                    camera_duration=camera_incident_rate_simple$camera_duration,
-                                                                                    rate=camera_incident_rate_simple$rate), 
+heat_map<- aggregate(camera_incident_rate_simple_good_animals$typeofanimal, by=list(location_label=camera_incident_rate_simple_good_animals$location_label,
+                                                                                    typeofanimal=camera_incident_rate_simple_good_animals$typeofanimal,
+                                                                                    camera_duration=camera_incident_rate_simple_good_animals$camera_duration,
+                                                                                    rate=camera_incident_rate_simple_good_animals$rate), 
                      FUN=length)
 
 #test to see how many blanks are in the typeofanimal class
-heat_map_aggregate<- aggregate(rate ~ typeofanimal, data=camera_incident_rate_simple, FUN=length)
+heat_map_aggregate<- aggregate(x ~ typeofanimal, data=camera_incident_rate_simple_good_animals, FUN=length)
+heat_map$rate<- heat_map$x/heat_map$camera_duration
+
+lemur_heat_map<- aggregate(heat_map$typeofanimal, by=list(location_label=heat_map$location_label,
+                                                                animal_type=heat_map$typeofanimal,
+                                                                rate=heat_map$rate),
+                                  
+                                  FUN=length)
+
+#subsetting animal types
+native_rodents <- camera_incident_rate_simple_good_animals[camera_incident_rate_simple_good_animals$species 
+                                                           %in% c("Gymnuromys roberti", "Eliurus sp.", "Eliurus minor", "Eliurus tanala", "Nesomys rufus"),]
+native_rodents_count <- aggregate(native_rodents$x, by=list(location_label=native_rodents$location_label,
+                                                                                                 typeofanimal=native_rodents$typeofanimal,
+                                                                                                 camera_duration=native_rodents$camera_duration,
+                                                                                                  zone=native_rodents$zone..E.C.,
+                                                                                                  lat=native_rodents$latUTM,
+                                                                                                  long=native_rodents$longUTM,
+                                                                                                  distance=native_rodents$distance.to.edge),
+                                  FUN=sum)
+#can also do this for invasive rodents, diurnal vs. nocturals, specific species, etc
